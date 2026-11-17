@@ -212,7 +212,87 @@ footer{
 .weather-card.alpine{
     border-left:6px solid #6f42c1;
 }
+.longrange-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:1rem;
+}
 
+.longrange-card{
+    background:var(--card);
+    border-radius:12px;
+    padding:1rem;
+    position:relative;
+}
+
+.forecast-days{
+    margin-top:0.75rem;
+}
+
+.forecast-day{
+    display:flex;
+    justify-content:space-between;
+    padding:0.35rem 0;
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.friday-highlight{
+    border:4px solid transparent;
+    border-radius:10px;
+    animation:rainbowBorder 6s linear infinite;
+    padding:6px;
+    margin:6px 0;
+}
+
+@keyframes rainbowBorder{
+    0%{border-color:#ff0000;}
+    16%{border-color:#ff8000;}
+    33%{border-color:#ffff00;}
+    50%{border-color:#00ff00;}
+    66%{border-color:#0080ff;}
+    83%{border-color:#8000ff;}
+    100%{border-color:#ff0000;}
+}
+
+.race-summary-card{
+    margin-top:1rem;
+    border-left:6px solid #4caf50;
+}
+
+.race-summary-banner{
+    padding:1rem;
+    border-radius:10px;
+    font-weight:600;
+}
+
+.summary-favourable{
+    background:rgba(76,175,80,.15);
+    color:#8af58f;
+}
+
+.summary-monitor{
+    background:rgba(255,184,77,.15);
+    color:#ffb84d;
+}
+
+.summary-adverse{
+    background:rgba(255,77,77,.15);
+    color:#ff7d7d;
+}
+
+.summary-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:1rem;
+    margin-top:1rem;
+}
+
+.summary-metric{
+    background:rgba(255,255,255,.05);
+    padding:.75rem;
+    border-radius:8px;
+    text-align:center;
+}
 </style>
 </head>
 <body>
@@ -240,7 +320,7 @@ footer{
 <p><strong>Support Crew:</strong> TBD</p>
 <p><strong>Dates:</strong> 22 November 2026 – 29 November 2026</p>
 <p><strong>Accommodation:</strong> Jindabyne</p>
-<p><strong>Reservation:</strong> confirmed</p>
+<p><strong>Reservation:</strong> check email</p>
 </div>
 </section>
 
@@ -348,6 +428,18 @@ footer{
     ">
         Loading...
     </div>
+</div>
+
+<div class="card race-summary-card">
+
+    <h3>Race Day Summary</h3>
+
+    <div id="raceDaySummary">
+
+        Calculating race conditions...
+
+    </div>
+
 </div>
 
 <br>
@@ -480,10 +572,26 @@ footer{
 
 </section>
 
+<section class="section">
+
+    <h2>Long Range Forecast (25–28 November)</h2>
+
+    <div class="card">
+        <p>
+            Updates automatically at 7:00am and whenever the page is refreshed.
+        </p>
+    </div>
+
+    <div class="longrange-grid" id="longRangeForecast">
+        Loading forecast...
+    </div>
+
+</section>
+
 </div>
 
 <footer>
-UTMB Kosci100 Adventure Dashboard | v1.4
+UTMB Kosci100 Adventure Dashboard | v1.5
 </footer>
 
 <script>
@@ -732,6 +840,262 @@ setInterval(
 refreshWeather,
 900000
 );
+
+</script>
+
+<script>
+
+async function loadLongRangeForecast(){
+
+    const container =
+        document.getElementById("longRangeForecast");
+
+    container.innerHTML = "Loading forecast...";
+
+    let html = "";
+let forecastData = [];
+
+    for(const location of weatherLocations){
+
+        try{
+
+            const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=Australia/Sydney`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            const dates =
+                data.daily.time;
+
+            const mins =
+                data.daily.temperature_2m_min;
+
+            const maxs =
+                data.daily.temperature_2m_max;
+const rain =
+    data.daily.precipitation_sum;
+
+const wind =
+    data.daily.wind_speed_10m_max;
+
+
+const locationForecast = {
+    name: location.name,
+    days: []
+};
+            html += `
+            <div class="longrange-card">
+                <h3>${location.name}</h3>
+                <div class="forecast-days">
+            `;
+
+            dates.forEach((day,index)=>{
+
+                
+                const d = new Date(day);
+
+                const label =
+                    d.toLocaleDateString(
+                        'en-AU',
+                        {
+                            weekday:'short',
+                            day:'numeric',
+                            month:'short'
+                        }
+                    );
+
+const weekday =
+    d.toLocaleDateString(
+        'en-AU',
+        {
+            weekday:'short'
+        }
+    );
+
+const highlight =
+    weekday === 'Fri'
+        ? 'friday-highlight'
+        : '';
+locationForecast.days.push({
+    weekday: weekday,
+    min: mins[index],
+    max: maxs[index],
+    wind: wind[index],
+    rain: rain[index]
+});
+
+const windColour =
+    wind[index] > 60 ? '#ff4d4d' :
+    wind[index] > 40 ? '#ffb84d' :
+    '#5dd65d';
+
+const rainColour =
+    rain[index] > 15 ? '#ff4d4d' :
+    rain[index] > 5 ? '#ffb84d' :
+    '#5dd65d';
+
+html += `
+    <div class="forecast-day ${highlight}">
+        <div>
+            <strong>${label}</strong>
+        </div>
+
+        <div style="text-align:right;font-size:.9rem;">
+            🌡 ${mins[index]}° / ${maxs[index]}°
+            <br>
+
+            <span style="color:${windColour}">
+                💨 ${wind[index]} km/h
+            </span>
+            <br>
+
+            <span style="color:${rainColour}">
+                🌧 ${rain[index]} mm
+            </span>
+
+        </div>
+    </div>
+`;
+            });
+forecastData.push(locationForecast);
+
+            html += `
+                </div>
+            </div>
+            `;
+
+        } catch(error){
+
+            html += `
+            <div class="longrange-card">
+                <h3>${location.name}</h3>
+                <p>Forecast unavailable</p>
+            </div>
+            `;
+        }
+    }
+
+container.innerHTML = html;
+
+updateRaceDaySummary(forecastData);
+}
+
+function updateRaceDaySummary(forecastData){
+
+    const summary =
+        document.getElementById("raceDaySummary");
+
+    if(!summary){
+        return;
+    }
+
+    let highestWind = 0;
+    let highestRain = 0;
+    let lowestTemp = 999;
+
+    forecastData.forEach(location => {
+
+        location.days.forEach(day => {
+
+            if(day.weekday !== 'Fri'){
+                return;
+            }
+
+            highestWind =
+                Math.max(highestWind, day.wind);
+
+            highestRain =
+                Math.max(highestRain, day.rain);
+
+            lowestTemp =
+                Math.min(lowestTemp, day.min);
+        });
+
+    });
+
+    let score = 100;
+
+    score -= highestWind * 0.6;
+    score -= highestRain * 1.5;
+
+    if(lowestTemp < 0){
+        score -= Math.abs(lowestTemp) * 3;
+    }
+
+    score = Math.max(0, Math.round(score));
+
+    let statusClass;
+    let statusText;
+
+    if(score >= 80){
+        statusClass = "summary-favourable";
+        statusText = "FAVOURABLE";
+    }
+    else if(score >= 60){
+        statusClass = "summary-monitor";
+        statusText = "MONITOR";
+    }
+    else{
+        statusClass = "summary-adverse";
+        statusText = "ADVERSE";
+    }
+
+    summary.innerHTML = `
+        <div class="race-summary-banner ${statusClass}">
+
+            Overall Race-Day Conditions:
+            ${statusText}
+            (${score}/100)
+
+            <div class="summary-grid">
+
+                <div class="summary-metric">
+                    💨<br>
+                    Max Wind<br>
+                    ${highestWind} km/h
+                </div>
+
+                <div class="summary-metric">
+                    🌧<br>
+                    Max Rain<br>
+                    ${highestRain} mm
+                </div>
+
+                <div class="summary-metric">
+                    🌡<br>
+                    Coldest Point<br>
+                    ${lowestTemp}°
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+loadLongRangeForecast();
+
+function schedule7amRefresh(){
+
+    const now = new Date();
+
+    const next = new Date();
+
+    next.setHours(7,0,0,0);
+
+    if(now > next){
+        next.setDate(next.getDate() + 1);
+    }
+
+    const delay = next - now;
+
+    setTimeout(()=>{
+        loadLongRangeForecast();
+        schedule7amRefresh();
+    }, delay);
+}
+
+schedule7amRefresh();
 
 </script>
 
